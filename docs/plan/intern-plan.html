@@ -1,0 +1,479 @@
+<title>E-commerce MS Bootcamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a timeline strip of 10 days up top, then one sheet per day (meta column + work column), reference tables at the end. Colors borrow the architecture diagram: blue = sync calls, green = async/Kafka, rust = gateway. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --ink: #18202e;
+  --muted: #5a6475;
+  --line: #dbe0e8;
+  --accent: #2b59c3;
+  --accent-soft: #e6ecfa;
+  --rust: #a84a22;
+  --rust-soft: #f8e9e1;
+  --green: #367234;
+  --green-soft: #e5f1e3;
+  --plum: #6b4a8f;
+  --plum-soft: #efe8f6;
+  --f-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #191f29; --ink: #e5e9f0; --muted: #9aa4b5; --line: #2a323f;
+    --accent: #85a3f2; --accent-soft: #1f2a44; --rust: #e39169; --rust-soft: #3a261d;
+    --green: #8cc884; --green-soft: #1e3020; --plum: #bf9fe3; --plum-soft: #2c2338;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #191f29; --ink: #e5e9f0; --muted: #9aa4b5; --line: #2a323f;
+  --accent: #85a3f2; --accent-soft: #1f2a44; --rust: #e39169; --rust-soft: #3a261d;
+  --green: #8cc884; --green-soft: #1e3020; --plum: #bf9fe3; --plum-soft: #2c2338;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.55;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: grid; gap: 48px; }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--accent-soft); color: var(--ink); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+a:focus-visible, input:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Header */
+header { display: grid; gap: 20px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; line-height: 1.08; max-width: 18ch; }
+.lede { max-width: 66ch; color: var(--muted); font-size: 17px; margin: 0; }
+.progress { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bar { flex: 1 1 240px; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar > span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.progress-label { font-family: var(--f-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.reset { font: inherit; font-size: 13px; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.reset:hover { color: var(--ink); border-color: var(--muted); }
+
+/* Timeline strip */
+.timeline { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.week-label { grid-column: span 5; font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.tl {
+  display: grid; gap: 4px; text-decoration: none; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--phase);
+  border-radius: 6px; padding: 8px 8px 10px; min-width: 0;
+}
+.tl:hover { border-color: var(--phase); }
+.tl b { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-weight: 600; }
+.tl span { font-size: 13px; line-height: 1.25; font-weight: 600; }
+.tl.done { background: var(--green-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--phase); margin-right: 6px; vertical-align: -1px; }
+.ph-found { --phase: var(--rust); }
+.ph-svc { --phase: var(--accent); }
+.ph-int { --phase: var(--green); }
+.ph-ship { --phase: var(--plum); }
+@media (max-width: 720px) {
+  .timeline { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .tl span { font-size: 12px; }
+}
+
+/* Rhythm */
+.rhythm { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.rhythm div { padding: 14px 16px; border-left: 1px solid var(--line); min-width: 0; }
+.rhythm div:first-child { border-left: 0; }
+.rhythm .t { font-family: var(--f-mono); font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.rhythm h4 { font-size: 15px; margin: 2px 0 4px; }
+.rhythm p { margin: 0; font-size: 14px; color: var(--muted); }
+@media (max-width: 720px) {
+  .rhythm { grid-template-columns: 1fr 1fr; }
+  .rhythm div:nth-child(3) { border-left: 0; }
+  .rhythm div:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+section > h2 { font-size: 22px; margin-bottom: 14px; }
+
+/* Day sheets */
+.days { display: grid; gap: 28px; }
+.day {
+  display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 26px;
+  scroll-margin-top: 16px;
+}
+.meta { display: grid; align-content: start; gap: 10px; }
+.daynum { font-family: var(--f-display); font-weight: 800; font-size: 52px; line-height: 0.9; color: var(--phase); font-variant-numeric: tabular-nums; }
+.when { font-family: var(--f-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.meta h3 { font-size: 21px; line-height: 1.2; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font-family: var(--f-mono); font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
+.daycount { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.work { display: grid; gap: 18px; min-width: 0; }
+.goal { margin: 0; font-size: 17px; }
+.goal strong { font-family: var(--f-display); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--phase); margin-right: 6px; }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tasks li label { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: start; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+.tasks li label:hover { background: var(--bg); }
+.tasks input { width: 16px; height: 16px; margin: 4px 0 0; accent-color: var(--green); cursor: pointer; }
+.tasks input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+pre { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.5; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; color: var(--ink); }
+.boxes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.box { border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.box h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+.box ul { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 3px; }
+.box p { margin: 0; font-size: 14px; }
+.learn { background: var(--accent-soft); } .learn h4 { color: var(--accent); }
+.doneb { background: var(--green-soft); } .doneb h4 { color: var(--green); }
+.coach { background: var(--rust-soft); } .coach h4 { color: var(--rust); }
+.coach p { font-style: italic; }
+@media (max-width: 820px) {
+  .day { grid-template-columns: 1fr; gap: 16px; padding: 20px 16px; }
+  .meta { grid-template-columns: auto 1fr; column-gap: 16px; align-items: center; }
+  .daynum { grid-row: span 2; }
+  .meta .chips, .meta .daycount { grid-column: 1 / -1; }
+  .boxes { grid-template-columns: 1fr; }
+}
+
+/* Reference */
+.ref { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .ref { grid-template-columns: 1fr; } }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.stack { display: grid; gap: 20px; }
+.stack h3 { font-size: 16px; margin-bottom: 8px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Intern track · 2 weeks · 10 working days</div>
+    <h1>From an empty repo to a running e-commerce site</h1>
+    <p class="lede">Each day ends with something that runs. The intern builds the platform from the architecture diagram, one piece at a time: a Spring Boot monorepo with Config Server, Eureka, an API gateway, five domain services, Kafka, Zipkin and an Angular storefront, all started by Docker Compose.</p>
+    <div class="progress">
+      <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+      <span class="progress-label" id="plabel">0 / 0 tasks</span>
+      <button class="reset" id="reset" type="button">Clear ticks</button>
+    </div>
+  </header>
+
+  <nav aria-label="Days">
+    <div class="timeline" id="timeline"></div>
+    <div class="legend" style="margin-top:10px">
+      <span class="ph-found"><i></i>Foundation</span>
+      <span class="ph-svc"><i></i>Domain services</span>
+      <span class="ph-int"><i></i>Integration &amp; messaging</span>
+      <span class="ph-ship"><i></i>Frontend &amp; ship</span>
+    </div>
+  </nav>
+
+  <section>
+    <h2>How each day runs</h2>
+    <div class="rhythm">
+      <div><div class="t">09:30 · 15 min</div><h4>Stand-up</h4><p>Yesterday, today, blockers. Read the day's goal together.</p></div>
+      <div><div class="t">10:00 · 45 min</div><h4>Concept session</h4><p>Whiteboard the "Learn" topics before any code is written.</p></div>
+      <div><div class="t">Rest of day</div><h4>Build</h4><p>Intern works alone. One pairing slot after lunch for unblocking.</p></div>
+      <div><div class="t">17:00 · 30 min</div><h4>Demo &amp; PR</h4><p>Show "Done when" live, answer the coach question, open a PR.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Daily plan</h2>
+    <div class="days" id="days"></div>
+  </section>
+
+  <section>
+    <h2>Reference</h2>
+    <div class="ref">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Component</th><th>Port</th><th>Storage</th><th>Built on</th></tr></thead>
+          <tbody>
+            <tr><td>config-server</td><td class="num">8888</td><td>Git / classpath</td><td>Day 2</td></tr>
+            <tr><td>discovery (Eureka)</td><td class="num">8761</td><td>–</td><td>Day 2</td></tr>
+            <tr><td>customer-service</td><td class="num">8090</td><td>MongoDB</td><td>Day 3</td></tr>
+            <tr><td>product-service</td><td class="num">8050</td><td>PostgreSQL</td><td>Day 4</td></tr>
+            <tr><td>gateway</td><td class="num">8222</td><td>–</td><td>Day 5</td></tr>
+            <tr><td>order-service</td><td class="num">8070</td><td>PostgreSQL</td><td>Day 6</td></tr>
+            <tr><td>payment-service</td><td class="num">8060</td><td>PostgreSQL</td><td>Day 7</td></tr>
+            <tr><td>notification-service</td><td class="num">8040</td><td>MongoDB</td><td>Day 8</td></tr>
+            <tr><td>frontend (Angular)</td><td class="num">4200</td><td>–</td><td>Day 9</td></tr>
+            <tr><td>PostgreSQL / pgAdmin</td><td class="num">5433 / 5050</td><td>volume</td><td>Day 1</td></tr>
+            <tr><td>MongoDB / mongo-express</td><td class="num">27017 / 8081</td><td>volume</td><td>Day 1</td></tr>
+            <tr><td>Kafka (KRaft)</td><td class="num">9092</td><td>volume</td><td>Day 1</td></tr>
+            <tr><td>Zipkin</td><td class="num">9411</td><td>in-memory</td><td>Day 1</td></tr>
+            <tr><td>MailDev (UI / SMTP)</td><td class="num">1080 / 1025</td><td>–</td><td>Day 1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="stack">
+        <div>
+          <h3>Kafka topics</h3>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Topic</th><th>Producer</th><th>Consumer</th></tr></thead>
+              <tbody>
+                <tr><td><code>order-topic</code></td><td>order</td><td>notification</td></tr>
+                <tr><td><code>payment-topic</code></td><td>payment</td><td>notification</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Stack</h3>
+          <p style="margin:0;font-size:14px;color:var(--muted)">Java 21, Spring Boot 3.x, Spring Cloud (Config, Netflix Eureka, Gateway, OpenFeign), Spring Data JPA + Flyway, Spring Data MongoDB, Spring Kafka, Micrometer Tracing + Zipkin, Thymeleaf mail templates, Angular, Docker Compose.</p>
+        </div>
+        <div>
+          <h3>Stretch goals if time remains</h3>
+          <ul style="margin:0;padding-left:18px;font-size:14px;color:var(--muted)">
+            <li>Resilience4j circuit breaker on order → product</li>
+            <li>Keycloak + OAuth2 on the gateway</li>
+            <li>Integration tests with Testcontainers</li>
+            <li>GitHub Actions build for every service</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Ticks are saved in this browser only. Ports follow the convention above; change them in the config server and every service picks them up.</footer>
+</div>
+
+<script>
+const DAYS = [
+  {
+    phase: "found", when: "Week 1 · Monday", title: "Kickoff and monorepo infrastructure",
+    chips: ["docker-compose", "postgres", "mongo", "kafka", "zipkin", "maildev"],
+    goal: "Understand the target system and get every piece of infrastructure running with one command.",
+    tasks: [
+      "Walk through the architecture diagram and the domain model together (1 h). Then the intern redraws both from memory.",
+      "Install the toolchain: JDK 21, Maven 3.9, Docker Desktop, Node 20 + Angular CLI, IntelliJ, Postman, Git.",
+      "Create the monorepo with the layout below, run <code>git init</code> and commit a root <code>README.md</code> and <code>.gitignore</code>.",
+      "Write <code>docker-compose.yml</code> with PostgreSQL, pgAdmin, MongoDB, mongo-express, Kafka in KRaft mode (no Zookeeper), Zipkin and MailDev, using named volumes and one shared network.",
+      "Add <code>infra/postgres/init.sql</code> that creates the three databases: <code>product_db</code>, <code>order_db</code>, <code>payment_db</code>.",
+      "Run <code>docker compose up -d</code> and open every admin UI in the browser."
+    ],
+    code: `e-commerce-ms/
+├── docker-compose.yml
+├── infra/postgres/init.sql
+├── services/
+│   ├── config-server/    ├── discovery/    ├── gateway/
+│   ├── customer/         ├── product/      ├── order/
+│   ├── payment/          └── notification/
+└── frontend/`,
+    learn: ["When microservices help, and when they hurt", "Database per service", "Images, containers, volumes, networks"],
+    done: ["<code>docker compose ps</code> shows every container up", "pgAdmin lists the 3 databases", "MailDev opens on :1080 and Zipkin on :9411"],
+    coach: "Why does each service own its database? What breaks if Order reads the product table directly?"
+  },
+  {
+    phase: "found", when: "Week 1 · Tuesday", title: "Config Server and Eureka discovery",
+    chips: ["config-server", "discovery"],
+    goal: "Centralise configuration and give services a registry so they can find each other by name.",
+    tasks: [
+      "Generate <code>config-server</code> with Spring Initializr. Add <code>@EnableConfigServer</code>, port 8888, <code>native</code> profile reading <code>classpath:/configurations</code>.",
+      "Create <code>configurations/application.yml</code> for shared settings (Eureka URL, tracing sampling, actuator), plus one file per service holding its port and datasource.",
+      "Generate <code>discovery</code> (Eureka Server) on 8761. It imports its own config with <code>spring.config.import=optional:configserver:http://localhost:8888</code>.",
+      "Document the start order in the README: config-server, then discovery, then everything else.",
+      "Bonus: move the configurations to a Git repository, as in the diagram, and point the config server at it."
+    ],
+    learn: ["Externalised config and the 12-factor app", "Service registry and client-side discovery", "Heartbeats and self-preservation"],
+    done: ["<code>GET :8888/customer-service/default</code> returns JSON", "Eureka dashboard on :8761 loads"],
+    coach: "A service is already running. What happens to it if the config server goes down? And if Eureka goes down?"
+  },
+  {
+    phase: "svc", when: "Week 1 · Wednesday", title: "Customer service on MongoDB",
+    chips: ["customer", "mongodb"],
+    goal: "Ship the first domain service with clean layering, validation and consistent errors. It becomes the template for the others.",
+    tasks: [
+      "Generate the service with Web, Data MongoDB, Validation, Eureka Client, Config Client and Lombok.",
+      "Model <code>Customer</code> as a document with an embedded <code>Address</code>. The 1:1 relation in the domain model maps to embedding.",
+      "Layer it: controller → service → repository. Use Java records for <code>CustomerRequest</code> and <code>CustomerResponse</code>, and a <code>CustomerMapper</code>.",
+      "Endpoints under <code>/api/v1/customers</code>: create, update, find all, find by id, <code>GET /exists/{id}</code>, delete.",
+      "Add bean validation (<code>@NotNull</code>, <code>@Email</code>) and a <code>@RestControllerAdvice</code> that returns one error shape with a field → message map. Throw <code>CustomerNotFoundException</code> for missing ids.",
+      "Write Mockito unit tests for create and not-found. Start a Postman collection with a Customer folder."
+    ],
+    learn: ["Document vs relational modelling", "Why DTOs, not entities, cross the API", "HTTP status codes that mean something"],
+    done: ["Service shows in Eureka", "All 6 endpoints pass in Postman", "Invalid email returns 400 with the field error"],
+    coach: "Why embed Address inside Customer instead of using a separate collection?"
+  },
+  {
+    phase: "svc", when: "Week 1 · Thursday", title: "Product service on PostgreSQL",
+    chips: ["product", "postgres", "flyway"],
+    goal: "Build a relational service with versioned migrations and a safe stock purchase.",
+    tasks: [
+      "Generate the service with Web, JPA, PostgreSQL Driver, Flyway, Validation, Eureka and Config clients.",
+      "Create <code>Category</code> and <code>Product</code> (many products → one category). Set <code>ddl-auto: validate</code> so Flyway owns the schema.",
+      "Write <code>V1__init_database.sql</code> (tables, sequences, FK) and <code>V2__insert_data.sql</code> (4 categories, about 10 products).",
+      "Endpoints: create product, find by id, find all, and <code>POST /api/v1/products/purchase</code> taking a list of <code>{productId, quantity}</code>.",
+      "Purchase logic in one <code>@Transactional</code> method: load all ids in one query, fail if any is missing or out of stock, decrement <code>availableQuantity</code>, return name, price and quantity per line.",
+      "Test the purchase: unknown id, not enough stock, happy path."
+    ],
+    learn: ["Schema migrations", "Transactions and atomic stock updates", "The N+1 query problem"],
+    done: ["Seed data visible in pgAdmin", "Buying more than the stock returns 400 and leaves every quantity unchanged"],
+    coach: "Two customers buy the last unit at the same moment. What happens, and how would <code>@Version</code> help?"
+  },
+  {
+    phase: "found", when: "Week 1 · Friday", title: "API gateway and week-1 review",
+    chips: ["gateway", "review"],
+    goal: "Put a single public entry point in front of the private network, then show the week's work end to end.",
+    tasks: [
+      "Generate <code>gateway</code> with Spring Cloud Gateway (reactive) and Eureka Client on port 8222.",
+      "Add routes: <code>/api/v1/customers/**</code> → <code>lb://CUSTOMER-SERVICE</code>, and the same for products, orders, order-lines and payments.",
+      "Enable global CORS for <code>http://localhost:4200</code>. The Angular app needs it on Day 9.",
+      "Switch the Postman collection to a <code>{{gateway}}</code> variable so every call goes through 8222.",
+      "Afternoon demo (15 min) from a cold start: compose up, config-server, discovery, services, requests through the gateway.",
+      "Code review together on naming, package layout and error handling. Fix the comments before leaving."
+    ],
+    learn: ["What a gateway should and shouldn't do", "<code>lb://</code> and client-side load balancing", "Public vs private network"],
+    done: ["Customer and product calls work only through :8222", "Demo done", "Review comments resolved"],
+    coach: "Start a second product-service on another port. What does the gateway do with the traffic?"
+  },
+  {
+    phase: "int", when: "Week 2 · Monday", title: "Order service with synchronous calls",
+    chips: ["order", "openfeign", "restclient"],
+    goal: "Place an order by orchestrating Customer and Product over HTTP.",
+    tasks: [
+      "Generate the service with Web, JPA, PostgreSQL, Flyway, OpenFeign, Validation, Eureka and Config.",
+      "Entities: <code>Order</code> (reference, totalAmount, paymentMethod enum, customerId, created/modified dates via JPA auditing) and <code>OrderLine</code> (productId, quantity). Add the Flyway migration.",
+      "Write <code>CustomerClient</code> with OpenFeign.",
+      "Write <code>ProductClient</code> with <code>RestClient</code>. Using two styles on purpose lets the intern compare them.",
+      "Implement <code>POST /api/v1/orders</code>: check the customer exists, purchase the products, save the order, save the lines. Leave TODOs for payment and Kafka.",
+      "Add <code>GET /orders</code>, <code>GET /orders/{id}</code>, <code>GET /order-lines/order/{orderId}</code>. Map remote 4xx errors to a <code>BusinessException</code>."
+    ],
+    learn: ["Sync vs async communication", "Feign vs RestClient", "Why there are no distributed transactions"],
+    done: ["Creating an order through the gateway lowers product stock and stores the order with its lines"],
+    coach: "The purchase succeeded but saving the order failed. What state is the system in now? How would a saga fix it?"
+  },
+  {
+    phase: "int", when: "Week 2 · Tuesday", title: "Payment service and Kafka producers",
+    chips: ["payment", "kafka"],
+    goal: "Complete the order flow with a payment, then publish both confirmations asynchronously.",
+    tasks: [
+      "Generate the service with Web, JPA, PostgreSQL, Flyway, Spring Kafka, Eureka and Config. Add a <code>Payment</code> entity (amount, paymentMethod, orderId, createdDate) and <code>POST /api/v1/payments</code>.",
+      "Declare topics as <code>NewTopic</code> beans: <code>order-topic</code> and <code>payment-topic</code>. Configure producers with <code>JsonSerializer</code>.",
+      "Payment publishes <code>PaymentConfirmation(orderReference, amount, paymentMethod, customerFirstname, customerLastname, customerEmail)</code>.",
+      "Order calls Payment through Feign after saving, then publishes <code>OrderConfirmation(orderReference, totalAmount, paymentMethod, customer, products)</code>.",
+      "Check the messages with <code>kafka-console-consumer</code> inside the container, or add Kafka UI to compose."
+    ],
+    learn: ["Topics, partitions, consumer groups, offsets", "At-least-once delivery", "Message schemas as contracts"],
+    done: ["One order creates a payment row", "One message lands on each topic"],
+    coach: "Notification is down for an hour. What happens to the messages, and what happens when it comes back?"
+  },
+  {
+    phase: "int", when: "Week 2 · Wednesday", title: "Notification service: consume and email",
+    chips: ["notification", "mongodb", "kafka", "mail"],
+    goal: "React to events by storing a notification and sending an HTML email.",
+    tasks: [
+      "Generate the service with Spring Kafka, Data MongoDB, Java Mail, Thymeleaf, Eureka and Config.",
+      "Configure consumers with <code>JsonDeserializer</code>, trusted packages and type mappings that match the producers. Let the intern hit the classic type-mapping error and debug it.",
+      "Add <code>@KafkaListener</code> methods for both topics (groups <code>orderGroup</code>, <code>paymentGroup</code>) that save a <code>Notification</code> document.",
+      "Write an <code>@Async</code> <code>EmailService</code> using <code>MimeMessageHelper</code> and two Thymeleaf templates: payment confirmation, and order confirmation with a product table and total.",
+      "Point SMTP at MailDev on <code>localhost:1025</code>."
+    ],
+    learn: ["Deserialisation contracts between services", "Idempotent consumers", "Dead-letter topics"],
+    done: ["One order through the gateway gives 2 emails in MailDev and 2 documents in Mongo"],
+    coach: "Kafka redelivers a message. How do you avoid sending the same email twice?"
+  },
+  {
+    phase: "ship", when: "Week 2 · Thursday", title: "Angular storefront",
+    chips: ["frontend", "angular"],
+    goal: "Give the platform a real website that only talks to the gateway.",
+    tasks: [
+      "Run <code>ng new frontend</code> (standalone, routing, SCSS). Set <code>apiUrl = http://localhost:8222/api/v1</code> in the environment file.",
+      "Create typed interfaces matching the backend DTOs and one HTTP service per domain.",
+      "Build the catalogue page (product grid with category and price) and product detail with Add to cart.",
+      "Build the cart with a signal-based <code>CartService</code>: quantities, line totals, order total.",
+      "Build checkout: customer form, then create the customer, then <code>POST /orders</code> with the chosen payment method. Show the order reference on a confirmation page.",
+      "Show backend validation messages on the form and a clear out-of-stock message."
+    ],
+    learn: ["SPA ↔ gateway", "CORS", "Why the browser knows only one URL"],
+    done: ["A user can browse, fill a cart and check out in the browser", "The email arrives in MailDev"],
+    coach: "Why must the browser never call product-service on its own port?"
+  },
+  {
+    phase: "ship", when: "Week 2 · Friday", title: "Tracing, full containerisation, final demo",
+    chips: ["zipkin", "dockerfile", "compose", "demo"],
+    goal: "Start the whole platform with one command and follow a single order across every service.",
+    tasks: [
+      "Add <code>micrometer-tracing-bridge-brave</code> and <code>zipkin-reporter-brave</code> to every service. Set sampling to 1.0 in the shared config and enable observation on Kafka templates and listeners.",
+      "Place an order and find its trace in Zipkin: gateway → order → customer, product, payment.",
+      "Write a multi-stage Dockerfile per service (Maven build → <code>eclipse-temurin:21-jre</code>) and one for Angular (build → nginx).",
+      "Add every service to compose with a <code>docker</code> Spring profile that uses container hostnames. Use healthchecks and <code>depends_on</code> so config-server and discovery start first.",
+      "Cold start with <code>docker compose up --build</code> and run the full purchase from <code>localhost:4200</code>.",
+      "Final demo (30 min) and retro: what was hard, what to learn next (see stretch goals)."
+    ],
+    learn: ["Logs, metrics, traces", "Trace and span ids", "Image layers and per-environment profiles"],
+    done: ["One command starts the whole stack", "A browser order shows a full trace in Zipkin and an email in MailDev"],
+    coach: "A customer says checkout is slow. Walk me through finding the cause with what you built this week."
+  }
+];
+
+const KEY = "ecom-ms-plan-ticks";
+let ticks = {};
+try { ticks = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { ticks = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(ticks)); } catch (e) {} };
+const pad = n => String(n).padStart(2, "0");
+
+const tl = document.getElementById("timeline");
+tl.innerHTML = '<div class="week-label">Week 1</div><div class="week-label">Week 2</div>' +
+  DAYS.map((d, i) => `<a class="tl ph-${d.phase}" id="tl${i + 1}" href="#day${i + 1}"><b>D${pad(i + 1)}</b><span>${d.title}</span></a>`).join("");
+
+document.getElementById("days").innerHTML = DAYS.map((d, i) => {
+  const n = i + 1;
+  const tasks = d.tasks.map((t, j) => {
+    const id = `d${n}-t${j + 1}`;
+    return `<li><label for="${id}"><input type="checkbox" id="${id}" data-day="${n}"${ticks[id] ? " checked" : ""}><span>${t}</span></label></li>`;
+  }).join("");
+  return `<article class="day ph-${d.phase}" id="day${n}">
+    <div class="meta">
+      <div class="daynum">${pad(n)}</div>
+      <div class="when">${d.when}</div>
+      <h3>${d.title}</h3>
+      <div class="chips">${d.chips.map(c => `<span class="chip">${c}</span>`).join("")}</div>
+      <div class="daycount" id="count${n}"></div>
+    </div>
+    <div class="work">
+      <p class="goal"><strong>Goal</strong>${d.goal}</p>
+      <ul class="tasks">${tasks}</ul>
+      ${d.code ? `<pre>${d.code}</pre>` : ""}
+      <div class="boxes">
+        <div class="box learn"><h4>Learn</h4><ul>${d.learn.map(x => `<li>${x}</li>`).join("")}</ul></div>
+        <div class="box doneb"><h4>Done when</h4><ul>${d.done.map(x => `<li>${x}</li>`).join("")}</ul></div>
+        <div class="box coach"><h4>Coach question</h4><p>${d.coach}</p></div>
+      </div>
+    </div>
+  </article>`;
+}).join("");
+
+function refresh() {
+  const all = document.querySelectorAll(".tasks input");
+  let total = 0, checked = 0;
+  DAYS.forEach((d, i) => {
+    const boxes = document.querySelectorAll(`.tasks input[data-day="${i + 1}"]`);
+    const c = [...boxes].filter(b => b.checked).length;
+    document.getElementById(`count${i + 1}`).textContent = `${c} / ${boxes.length} tasks done`;
+    document.getElementById(`tl${i + 1}`).classList.toggle("done", c === boxes.length);
+    total += boxes.length; checked += c;
+  });
+  document.getElementById("bar").style.width = (all.length ? (checked / total) * 100 : 0) + "%";
+  document.getElementById("plabel").textContent = `${checked} / ${total} tasks`;
+}
+document.getElementById("days").addEventListener("change", e => {
+  if (e.target.matches(".tasks input")) {
+    if (e.target.checked) ticks[e.target.id] = 1; else delete ticks[e.target.id];
+    save(); refresh();
+  }
+});
+document.getElementById("reset").addEventListener("click", () => {
+  ticks = {}; save();
+  document.querySelectorAll(".tasks input").forEach(b => b.checked = false);
+  refresh();
+});
+refresh();
+</script>
