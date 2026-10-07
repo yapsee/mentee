@@ -1,0 +1,9 @@
+# Tests run without config-server: keep the registry standalone and quiet.
+spring:
+  cloud:
+    config:
+      enabled: false
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false

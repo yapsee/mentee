@@ -1,0 +1,10 @@
+server:
+  port: 8761
+
+eureka:
+  client:
+    # The registry does not register with itself or fetch from itself.
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/

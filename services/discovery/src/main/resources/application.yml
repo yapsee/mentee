@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: discovery
+  config:
+    # Everything else (port, eureka settings) comes from config-server: configurations/discovery.yml
+    # No "optional:" prefix: if config-server is down, fail at startup instead of
+    # silently starting with defaults (port 8080, wrong settings).
+    import: configserver:${CONFIG_SERVER_URL:http://localhost:8888}

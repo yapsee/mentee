@@ -1,0 +1,11 @@
+server:
+  port: 8040
+
+spring:
+  # Spring Boot 4 property (was spring.data.mongodb.uri in Boot 3)
+  mongodb:
+    uri: mongodb://${MONGO_USER:ecom}:${MONGO_PASSWORD:ecom}@${MONGO_HOST:localhost}:27017/notification?authSource=admin
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: 1025
+# Kafka consumers are added on Day 8.
