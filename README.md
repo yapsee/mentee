@@ -86,3 +86,21 @@ cd services/discovery     && ./mvnw spring-boot:run    # terminal 2
 All service configuration lives in `services/config-server/src/main/resources/configurations/`:
 `application.yml` is shared by every service, and `<service-name>.yml` holds that service's port and datasource.
 A service only keeps its name and the config-server address in its own `application.yml`.
+
+## Daily workflow
+
+One branch and one pull request per day. `master` only receives reviewed work.
+
+```bash
+git checkout master && git pull
+git checkout -b day-03-customer-service      # day-NN-<short-topic>
+# ...work, commit often...
+git push -u origin day-03-customer-service
+```
+
+Then open a pull request into `master` on GitHub. Each PR includes:
+- the day's report in `docs/days/day-NN.md`
+- how to run and check it ("Done when" from the plan)
+- the answer to the day's coach question
+
+The mentor reviews, the intern fixes the comments, and the mentor merges. The next day starts from the updated `master`.
