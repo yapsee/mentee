@@ -76,12 +76,16 @@ Start order: **config-server → discovery → everything else**. Each service i
 ```bash
 cd services/config-server && ./mvnw spring-boot:run    # terminal 1, wait for "Started"
 cd services/discovery     && ./mvnw spring-boot:run    # terminal 2
+cd services/customer      && ./mvnw spring-boot:run    # terminal 3 (needs docker compose up)
 ```
 
 | Check | URL |
 |---|---|
 | Config for a service | http://localhost:8888/customer-service/default |
 | Eureka dashboard | http://localhost:8761 |
+| Customer API | http://localhost:8090/api/v1/customers |
+
+API requests to try: import `docs/postman/ecom-ms.postman_collection.json` into Postman.
 
 All service configuration lives in `services/config-server/src/main/resources/configurations/`:
 `application.yml` is shared by every service, and `<service-name>.yml` holds that service's port and datasource.
