@@ -12,8 +12,8 @@ A Spring Boot microservices e-commerce platform in a single monorepo, built over
 | Tool | Version | Why |
 |---|---|---|
 | Docker Desktop | 24+ | Runs all infrastructure (no local Postgres/Mongo/Kafka needed) |
-| JDK | 21 | Spring Boot 3 services |
-| Maven | 3.9+ | Builds (each service will also ship a Maven wrapper) |
+| JDK | 21 | Spring Boot 4 services |
+| Maven | none needed | Each service ships its own Maven wrapper (`./mvnw`) |
 | Node.js + Angular CLI | 20 LTS / 18+ | Frontend |
 | Git, Postman, IntelliJ | latest | Daily work |
 
@@ -69,4 +69,20 @@ Stop with `docker compose down`. Add `-v` to also wipe all data.
 | notification | 8040 | MongoDB |
 | frontend | 4200 | – |
 
-Start order once services exist: **config-server → discovery → everything else**.
+## Run the services
+
+Start order: **config-server → discovery → everything else**. Each service is its own Maven project:
+
+```bash
+cd services/config-server && ./mvnw spring-boot:run    # terminal 1, wait for "Started"
+cd services/discovery     && ./mvnw spring-boot:run    # terminal 2
+```
+
+| Check | URL |
+|---|---|
+| Config for a service | http://localhost:8888/customer-service/default |
+| Eureka dashboard | http://localhost:8761 |
+
+All service configuration lives in `services/config-server/src/main/resources/configurations/`:
+`application.yml` is shared by every service, and `<service-name>.yml` holds that service's port and datasource.
+A service only keeps its name and the config-server address in its own `application.yml`.

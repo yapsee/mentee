@@ -1,0 +1,7 @@
+server:
+  port: 8090
+
+spring:
+  # Spring Boot 4 property (was spring.data.mongodb.uri in Boot 3)
+  mongodb:
+    uri: mongodb://${MONGO_USER:ecom}:${MONGO_PASSWORD:ecom}@${MONGO_HOST:localhost}:27017/customer?authSource=admin
