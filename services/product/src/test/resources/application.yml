@@ -1,0 +1,11 @@
+# Tests run without config-server or Eureka. The database comes from Testcontainers.
+spring:
+  cloud:
+    config:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+eureka:
+  client:
+    enabled: false

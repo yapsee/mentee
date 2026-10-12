@@ -2,7 +2,7 @@
   "info": {
     "name": "E-commerce MS",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run the Customer folder top to bottom. Day 5 switches customerUrl to the gateway."
+    "description": "Run each folder top to bottom. Day 5 switches the *Url variables to the gateway."
   },
   "variable": [
     {
@@ -11,6 +11,14 @@
     },
     {
       "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "productUrl",
+      "value": "http://localhost:8050/api/v1"
+    },
+    {
+      "key": "productId",
       "value": ""
     }
   ],
@@ -290,6 +298,270 @@
               "script": {
                 "exec": [
                   "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "item": [
+        {
+          "name": "Find all (seeded)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productUrl}}/products",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('12+ products', () => pm.expect(pm.response.json().length).to.be.at.least(12));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Keychron Q1\",\n  \"description\": \"Aluminium 75% keyboard\",\n  \"availableQuantity\": 3,\n  \"price\": 169.0,\n  \"categoryId\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productUrl}}/products/{{productId}}",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('category included', () => pm.expect(pm.response.json().categoryName).to.eql('Keyboards'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create with unknown category (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"description\": \"Y\",\n  \"availableQuantity\": 1,\n  \"price\": 1,\n  \"categoryId\": 42\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Purchase 2 units",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products/purchase",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products",
+                "purchase"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"productId\": {{productId}},\n    \"quantity\": 2\n  }\n]"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Purchase more than stock (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products/purchase",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products",
+                "purchase"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"productId\": {{productId}},\n    \"quantity\": 5\n  }\n]"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 with shortages', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().shortages).to.have.length(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Purchase invalid quantity (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products/purchase",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products",
+                "purchase"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"productId\": 1,\n    \"quantity\": 0\n  }\n]"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock is now 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productUrl}}/products/{{productId}}",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('stock 1', () => pm.expect(pm.response.json().availableQuantity).to.eql(1));"
                 ]
               }
             }

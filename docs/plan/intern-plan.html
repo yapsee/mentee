@@ -311,11 +311,11 @@ const DAYS = [
       "Create <code>Category</code> and <code>Product</code> (many products → one category). Set <code>ddl-auto: validate</code> so Flyway owns the schema.",
       "Write <code>V1__init_database.sql</code> (tables, sequences, FK) and <code>V2__insert_data.sql</code> (4 categories, about 10 products).",
       "Endpoints: create product, find by id, find all, and <code>POST /api/v1/products/purchase</code> taking a list of <code>{productId, quantity}</code>.",
-      "Purchase logic in one <code>@Transactional</code> method: load all ids in one query, fail if any is missing or out of stock, decrement <code>availableQuantity</code>, return name, price and quantity per line.",
+      "Purchase logic in one <code>@Transactional</code> method: load all ids in one query, return 404 for unknown ids and 409 when stock is short, decrement <code>availableQuantity</code>, return name, price and quantity per line.",
       "Test the purchase: unknown id, not enough stock, happy path."
     ],
     learn: ["Schema migrations", "Transactions and atomic stock updates", "The N+1 query problem"],
-    done: ["Seed data visible in pgAdmin", "Buying more than the stock returns 400 and leaves every quantity unchanged"],
+    done: ["Seed data visible in pgAdmin", "Buying more than the stock returns 409 and leaves every quantity unchanged"],
     coach: "Two customers buy the last unit at the same moment. What happens, and how would <code>@Version</code> help?"
   },
   {
