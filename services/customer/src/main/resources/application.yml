@@ -1,0 +1,6 @@
+spring:
+  application:
+    # Must match configurations/customer-service.yml in config-server.
+    name: customer-service
+  config:
+    import: configserver:${CONFIG_SERVER_URL:http://localhost:8888}

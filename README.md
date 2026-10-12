@@ -76,13 +76,35 @@ Start order: **config-server → discovery → everything else**. Each service i
 ```bash
 cd services/config-server && ./mvnw spring-boot:run    # terminal 1, wait for "Started"
 cd services/discovery     && ./mvnw spring-boot:run    # terminal 2
+cd services/customer      && ./mvnw spring-boot:run    # terminal 3 (needs docker compose up)
 ```
 
 | Check | URL |
 |---|---|
 | Config for a service | http://localhost:8888/customer-service/default |
 | Eureka dashboard | http://localhost:8761 |
+| Customer API | http://localhost:8090/api/v1/customers |
+
+API requests to try: import `docs/postman/ecom-ms.postman_collection.json` into Postman.
 
 All service configuration lives in `services/config-server/src/main/resources/configurations/`:
 `application.yml` is shared by every service, and `<service-name>.yml` holds that service's port and datasource.
 A service only keeps its name and the config-server address in its own `application.yml`.
+
+## Daily workflow
+
+One branch and one pull request per day. `master` only receives reviewed work.
+
+```bash
+git checkout master && git pull
+git checkout -b day-03-customer-service      # day-NN-<short-topic>
+# ...work, commit often...
+git push -u origin day-03-customer-service
+```
+
+Then open a pull request into `master` on GitHub. Each PR includes:
+- the day's report in `docs/days/day-NN.md`
+- how to run and check it ("Done when" from the plan)
+- the answer to the day's coach question
+
+The mentor reviews, the intern fixes the comments, and the mentor merges. The next day starts from the updated `master`.
