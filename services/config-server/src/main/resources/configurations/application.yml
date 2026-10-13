@@ -14,6 +14,11 @@ spring:
       # Let -D flags and env vars override values coming from the config server.
       override-system-properties: false
 
+server:
+  # Behind the gateway: build URLs (e.g. the Location header) from the X-Forwarded-* headers
+  # the gateway sends, so clients see http://localhost:8222/... and never a private service port.
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:

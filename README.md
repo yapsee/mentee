@@ -78,16 +78,21 @@ cd services/config-server && ./mvnw spring-boot:run    # terminal 1, wait for "S
 cd services/discovery     && ./mvnw spring-boot:run    # terminal 2
 cd services/customer      && ./mvnw spring-boot:run    # terminal 3 (needs docker compose up)
 cd services/product       && ./mvnw spring-boot:run    # terminal 4 (needs docker compose up)
+cd services/gateway       && ./mvnw spring-boot:run    # terminal 5
 ```
 
 | Check | URL |
 |---|---|
 | Config for a service | http://localhost:8888/customer-service/default |
 | Eureka dashboard | http://localhost:8761 |
-| Customer API | http://localhost:8090/api/v1/customers |
-| Product API | http://localhost:8050/api/v1/products |
+| **API (use this)** | **http://localhost:8222/api/v1/...** via the gateway |
+| Gateway routes | http://localhost:8222/actuator/gateway/routes |
+| Customer API (direct, debug only) | http://localhost:8090/api/v1/customers |
+| Product API (direct, debug only) | http://localhost:8050/api/v1/products |
 
-API requests to try: import `docs/postman/ecom-ms.postman_collection.json` into Postman.
+API requests to try: import `docs/postman/ecom-ms.postman_collection.json` into Postman (all requests go through the gateway), or run `npx newman run docs/postman/ecom-ms.postman_collection.json`.
+
+After a service starts, wait about 30 s for it to appear in Eureka before calling it through the gateway (503 until then).
 
 All service configuration lives in `services/config-server/src/main/resources/configurations/`:
 `application.yml` is shared by every service, and `<service-name>.yml` holds that service's port and datasource.
