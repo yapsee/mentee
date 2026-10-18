@@ -2,20 +2,26 @@
   "info": {
     "name": "E-commerce MS",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run each folder top to bottom. Day 5 switches the *Url variables to the gateway."
+    "description": "Every request goes through the API gateway (gatewayUrl). To debug one service directly, point customerUrl or productUrl at its own port."
   },
   "variable": [
     {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8222/api/v1"
+    },
+    {
       "key": "customerUrl",
-      "value": "http://localhost:8090/api/v1"
+      "value": "{{gatewayUrl}}",
+      "description": "Direct (debug only): http://localhost:8090/api/v1"
+    },
+    {
+      "key": "productUrl",
+      "value": "{{gatewayUrl}}",
+      "description": "Direct (debug only): http://localhost:8050/api/v1"
     },
     {
       "key": "customerId",
       "value": ""
-    },
-    {
-      "key": "productUrl",
-      "value": "http://localhost:8050/api/v1"
     },
     {
       "key": "productId",
@@ -56,7 +62,8 @@
               "script": {
                 "exec": [
                   "pm.test('201 Created', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('customerId', pm.response.json().id);"
+                  "pm.collectionVariables.set('customerId', pm.response.json().id);",
+                  "pm.test('Location points to the gateway', () => pm.expect(pm.response.headers.get('Location')).to.include(':8222/'));"
                 ]
               }
             }

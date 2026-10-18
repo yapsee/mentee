@@ -1,0 +1,8 @@
+# Tests run without config-server or Eureka.
+spring:
+  cloud:
+    config:
+      enabled: false
+eureka:
+  client:
+    enabled: false
