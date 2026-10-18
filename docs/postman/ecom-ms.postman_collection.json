@@ -20,11 +20,24 @@
       "description": "Direct (debug only): http://localhost:8050/api/v1"
     },
     {
+      "key": "orderUrl",
+      "value": "{{gatewayUrl}}",
+      "description": "Direct (debug only): http://localhost:8070/api/v1"
+    },
+    {
       "key": "customerId",
       "value": ""
     },
     {
       "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "orderCustomerId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
       "value": ""
     }
   ],
@@ -569,6 +582,298 @@
               "script": {
                 "exec": [
                   "pm.test('stock 1', () => pm.expect(pm.response.json().availableQuantity).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "item": [
+        {
+          "name": "Setup: create a customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{customerUrl}}/customers",
+              "host": [
+                "{{customerUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Grace\",\n  \"lastname\": \"Hopper\",\n  \"email\": \"grace.order@example.com\",\n  \"address\": {\n    \"street\": \"Navy Road\",\n    \"houseNumber\": \"1\",\n    \"zipCode\": \"10001\"\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('orderCustomerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place order (2 x product 1 + 1 x product 7)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{orderCustomerId}}\",\n  \"paymentMethod\": \"VISA\",\n  \"products\": [{\"productId\": 1, \"quantity\": 2}, {\"productId\": 7, \"quantity\": 1}]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('total computed by the server (2 x 89.99 + 99.99)', () => pm.expect(pm.response.json().totalAmount).to.eql(279.97));",
+                  "pm.test('reference format', () => pm.expect(pm.response.json().reference).to.match(/^ORD-\\d{8}-[0-9A-F]{6}$/));",
+                  "pm.collectionVariables.set('orderId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find order by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order lines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/order-lines/order/{{orderId}}",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "order-lines",
+                "order",
+                "{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('2 lines', () => pm.expect(pm.response.json()).to.have.length(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find all orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown customer (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customerId\": \"does-not-exist\", \"paymentMethod\": \"VISA\", \"products\": [{\"productId\": 1, \"quantity\": 1}]}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404 Customer not found', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().title).to.eql('Customer not found'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Out of stock (409, error from product-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{orderCustomerId}}\",\n  \"paymentMethod\": \"VISA\",\n  \"products\": [{\"productId\": 6, \"quantity\": 999}]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 with shortages', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().shortages).to.have.length(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid payment method (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customerId\": \"x\", \"paymentMethod\": \"CASH\", \"products\": [{\"productId\": 1, \"quantity\": 1}]}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cleanup: delete the customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{customerUrl}}/customers/{{orderCustomerId}}",
+              "host": [
+                "{{customerUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{orderCustomerId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
                 ]
               }
             }
