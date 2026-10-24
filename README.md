@@ -79,6 +79,7 @@ cd services/discovery     && ./mvnw spring-boot:run    # terminal 2
 cd services/customer      && ./mvnw spring-boot:run    # terminal 3 (needs docker compose up)
 cd services/product       && ./mvnw spring-boot:run    # terminal 4 (needs docker compose up)
 cd services/gateway       && ./mvnw spring-boot:run    # terminal 5
+cd services/order         && ./mvnw spring-boot:run    # terminal 6 (needs docker compose up)
 ```
 
 | Check | URL |
@@ -89,6 +90,7 @@ cd services/gateway       && ./mvnw spring-boot:run    # terminal 5
 | Gateway routes | http://localhost:8222/actuator/gateway/routes |
 | Customer API (direct, debug only) | http://localhost:8090/api/v1/customers |
 | Product API (direct, debug only) | http://localhost:8050/api/v1/products |
+| Order API (direct, debug only) | http://localhost:8070/api/v1/orders |
 
 API requests to try: import `docs/postman/ecom-ms.postman_collection.json` into Postman (all requests go through the gateway), or run `npx newman run docs/postman/ecom-ms.postman_collection.json`.
 
@@ -98,7 +100,7 @@ All service configuration lives in `services/config-server/src/main/resources/co
 `application.yml` is shared by every service, and `<service-name>.yml` holds that service's port and datasource.
 A service only keeps its name and the config-server address in its own `application.yml`.
 
-**Docker must be running to build** services with a database (product, and later order and payment): their tests start a throwaway PostgreSQL with Testcontainers.
+**Docker must be running to build** services with a database (product, order, and later payment): their tests start a throwaway PostgreSQL with Testcontainers.
 
 ## Daily workflow
 

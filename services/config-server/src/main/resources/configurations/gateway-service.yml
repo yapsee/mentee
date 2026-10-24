@@ -29,14 +29,11 @@ spring:
               uri: lb://PRODUCT-SERVICE
               predicates:
                 - Path=/api/v1/products/**
+            # One service, two endpoint groups: order lines belong to the Order domain.
             - id: order-service
               uri: lb://ORDER-SERVICE
               predicates:
-                - Path=/api/v1/orders/**
-            - id: order-lines-service
-              uri: lb://ORDER-SERVICE
-              predicates:
-                - Path=/api/v1/order-lines/**
+                - Path=/api/v1/orders/**,/api/v1/order-lines/**
             - id: payment-service
               uri: lb://PAYMENT-SERVICE
               predicates:
