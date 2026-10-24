@@ -25,6 +25,11 @@
       "description": "Direct (debug only): http://localhost:8070/api/v1"
     },
     {
+      "key": "paymentUrl",
+      "value": "{{gatewayUrl}}",
+      "description": "Direct (debug only): http://localhost:8060/api/v1"
+    },
+    {
       "key": "customerId",
       "value": ""
     },
@@ -38,6 +43,14 @@
     },
     {
       "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    },
+    {
+      "key": "payOrderRef",
       "value": ""
     }
   ],
@@ -874,6 +887,154 @@
               "script": {
                 "exec": [
                   "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Pay an order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paymentUrl}}/payments",
+              "host": [
+                "{{paymentUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 49.90,\n  \"paymentMethod\": \"VISA\",\n  \"orderId\": 999,\n  \"orderReference\": \"{{payOrderRef}}\",\n  \"customer\": {\"id\": \"c-test\", \"firstname\": \"Ada\", \"lastname\": \"Lovelace\", \"email\": \"ada@example.com\"}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('payOrderRef', 'ORD-POSTMAN-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('SUCCEEDED', () => pm.expect(pm.response.json().status).to.eql('SUCCEEDED'));",
+                  "pm.collectionVariables.set('paymentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay the same order again (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paymentUrl}}/payments",
+              "host": [
+                "{{paymentUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 49.90,\n  \"paymentMethod\": \"VISA\",\n  \"orderId\": 999,\n  \"orderReference\": \"{{payOrderRef}}\",\n  \"customer\": {\"id\": \"c-test\", \"firstname\": \"Ada\", \"lastname\": \"Lovelace\", \"email\": \"ada@example.com\"}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200, not 201', () => pm.response.to.have.status(200));",
+                  "pm.test('same payment returned', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('paymentId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find payment by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{paymentUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid payment (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paymentUrl}}/payments",
+              "host": [
+                "{{paymentUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -1,\n  \"paymentMethod\": \"VISA\",\n  \"orderId\": 999,\n  \"orderReference\": \"{{payOrderRef}}\",\n  \"customer\": {\"id\": \"c-test\", \"firstname\": \"Ada\", \"lastname\": \"Lovelace\", \"email\": \"not-an-email\"}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 with nested field', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().errors).to.have.property('customer.email'); });"
                 ]
               }
             }

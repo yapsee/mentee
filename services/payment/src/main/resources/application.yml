@@ -1,0 +1,6 @@
+spring:
+  application:
+    # Must match configurations/payment-service.yml in config-server.
+    name: payment-service
+  config:
+    import: configserver:${CONFIG_SERVER_URL:http://localhost:8888}

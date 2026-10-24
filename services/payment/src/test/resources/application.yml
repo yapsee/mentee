@@ -1,0 +1,17 @@
+# Tests run without config-server or Eureka. Postgres and Kafka come from Testcontainers.
+spring:
+  cloud:
+    config:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.type.mapping: paymentConfirmation:com.ecom.payment.notification.PaymentConfirmation
+eureka:
+  client:
+    enabled: false

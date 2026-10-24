@@ -8,6 +8,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+  kafka:
+    # No broker in these tests: don't try to create topics at startup. The producer is mocked.
+    admin:
+      auto-create: false
 eureka:
   client:
     enabled: false

@@ -2,6 +2,10 @@ package com.ecom.order.order;
 
 import com.ecom.order.TestcontainersConfiguration;
 import com.ecom.order.customer.CustomerClient;
+import com.ecom.order.customer.CustomerResponse;
+import com.ecom.order.kafka.OrderProducer;
+import com.ecom.order.payment.PaymentClient;
+import com.ecom.order.payment.PaymentResponse;
 import com.ecom.order.orderline.OrderLineResponse;
 import com.ecom.order.product.ProductClient;
 import com.ecom.order.product.PurchaseRequest;
@@ -19,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-/** Real PostgreSQL + Flyway; the other services are mocked. */
+/** Real PostgreSQL + Flyway; the other services and Kafka are mocked. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 class OrderPersistenceIntegrationTest {
@@ -33,9 +37,16 @@ class OrderPersistenceIntegrationTest {
     @MockitoBean
     private ProductClient productClient;
 
+    @MockitoBean
+    private PaymentClient paymentClient;
+
+    @MockitoBean
+    private OrderProducer orderProducer;
+
     @Test
     void createdOrder_isStoredWithLinesAndAuditDate() {
-        when(customerClient.existsById("c-9")).thenReturn(true);
+        when(customerClient.findById("c-9")).thenReturn(new CustomerResponse("c-9", "Ada", "Lovelace", "ada@example.com"));
+        when(paymentClient.requestPayment(any())).thenReturn(new PaymentResponse(1, "PAY-1", "SUCCEEDED"));
         when(productClient.purchaseProducts(any())).thenReturn(List.of(
                 new PurchaseResponse(4, "Dell U2723QE", "", new BigDecimal("579.00"), 1),
                 new PurchaseResponse(10, "Sony WH-1000XM5", "", new BigDecimal("349.99"), 2)));
