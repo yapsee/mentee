@@ -1,16 +1,20 @@
 package com.ecom.order.order;
 
 import com.ecom.order.customer.CustomerClient;
-import com.ecom.order.exception.BusinessException;
+import com.ecom.order.customer.CustomerResponse;
 import com.ecom.order.exception.OrderNotFoundException;
+import com.ecom.order.kafka.OrderConfirmation;
+import com.ecom.order.kafka.OrderProducer;
 import com.ecom.order.orderline.OrderLine;
 import com.ecom.order.orderline.OrderLineRepository;
 import com.ecom.order.orderline.OrderLineResponse;
+import com.ecom.order.payment.PaymentClient;
+import com.ecom.order.payment.PaymentRequest;
+import com.ecom.order.payment.PaymentResponse;
 import com.ecom.order.product.ProductClient;
 import com.ecom.order.product.PurchaseResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +33,8 @@ public class OrderService {
     private final OrderLineRepository orderLineRepository;
     private final CustomerClient customerClient;
     private final ProductClient productClient;
+    private final PaymentClient paymentClient;
+    private final OrderProducer orderProducer;
     private final OrderMapper mapper;
 
     /**
@@ -36,11 +42,9 @@ public class OrderService {
      * other services over the network. Only the final save is a (short) transaction.
      */
     public OrderResponse createOrder(OrderRequest request) {
-        // 1. The customer must exist (customer-service, OpenFeign).
-        if (!customerClient.existsById(request.customerId())) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "Customer not found",
-                    "No customer found with id " + request.customerId());
-        }
+        // 1. The customer must exist; we also need their name and email for payment and emails.
+        //    404 from customer-service -> BusinessException "Customer not found" (FeignConfig).
+        CustomerResponse customer = customerClient.findById(request.customerId());
 
         // 2. Reserve the stock and get the real prices (product-service, RestClient).
         //    From here on, stock is decremented in ANOTHER database: see docs/days/day-06.md §4.
@@ -73,10 +77,27 @@ public class OrderService {
                     + "Release this stock manually.", request.customerId(), request.products(), e);
             throw e;
         }
-        log.info("Order {} created for customer {}: {} line(s), total {}",
+        log.info("Order {} saved for customer {}: {} line(s), total {}",
                 saved.getReference(), saved.getCustomerId(), purchased.size(), total);
 
-        // TODO Day 7: ask payment-service to pay, then publish OrderConfirmation to Kafka.
+        // 5. Pay (payment-service, OpenFeign). payment-service publishes PaymentConfirmation itself.
+        PaymentResponse payment;
+        try {
+            payment = paymentClient.requestPayment(new PaymentRequest(
+                    total, request.paymentMethod(), saved.getId(), saved.getReference(), customer));
+        } catch (RuntimeException e) {
+            // The order exists and the stock is taken, but it is not paid. Safe to retry later:
+            // payment-service is idempotent on the order reference.
+            log.error("INCONSISTENCY: order {} saved but payment FAILED. Retry the payment for this order.",
+                    saved.getReference(), e);
+            throw e;
+        }
+        log.info("Order {} paid: payment {} {}", saved.getReference(), payment.reference(), payment.status());
+
+        // 6. Announce it (Kafka, asynchronous). notification-service sends the email from this event.
+        orderProducer.sendOrderConfirmation(new OrderConfirmation(
+                saved.getReference(), total, request.paymentMethod(), customer, purchased));
+
         return mapper.toResponse(saved);
     }
 

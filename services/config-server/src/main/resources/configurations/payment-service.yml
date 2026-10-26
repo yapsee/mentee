@@ -12,3 +12,15 @@ spring:
     open-in-view: false
   flyway:
     baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Spring Kafka 4 / Jackson 3 (older tutorials: JsonSerializer, now deprecated).
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        # Header __TypeId__ = "paymentConfirmation" instead of the Java class name, so the consumer
+        # maps it to its own class and no Java code is shared between services.
+        spring.json.type.mapping: paymentConfirmation:com.ecom.payment.notification.PaymentConfirmation
+        # Fail fast when Kafka is down instead of blocking the HTTP request for 60 s.
+        max.block.ms: 5000

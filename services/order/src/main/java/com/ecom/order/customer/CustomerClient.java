@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 @FeignClient(name = "customer-service", path = "/api/v1/customers")
 public interface CustomerClient {
 
-    @GetMapping("/exists/{id}")
-    boolean existsById(@PathVariable String id);
+    /** 404 from customer-service becomes a BusinessException "Customer not found" (FeignConfig). */
+    @GetMapping("/{id}")
+    CustomerResponse findById(@PathVariable String id);
 }
